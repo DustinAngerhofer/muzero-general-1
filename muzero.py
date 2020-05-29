@@ -8,12 +8,33 @@ import numpy
 import ray
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
+import argparse
 import models
 import replay_buffer
 import self_play
 import shared_storage
 import trainer
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--game_choice', type=int, help='Index number of desired game',
+                    default=0)  # See line 32 for more info
+parser.add_argument('--interactive_mode', type=bool, help='Index of desired game', default=False)
+parser.add_argument('--weights_path', type=str, help='Path of desired weights', default=None)
+parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
+parser.add_argument('--decay_rate', type=float, help='decay rate', default=0.95)
+parser.add_argument('--num_actors', type=int, help='Number of simultaneous threads self-playing', default=15)
+parser.add_argument('--optimizer', type=str, help='"Adam" or "SGD"', default='Adam')
+parser.add_argument('--beginning_turn', type=int, help='0: MuZero plays first, 1: MuZero plays second', default=0)
+parser.add_argument('--self_play_delay', type=float, help='Number of seconds to wait after each played game',
+                    default=0)
+parser.add_argument('--training_delay', type=float, help='Number of seconds to wait after each training step',
+                    default=0)
+args = parser.parse_args()
+
+''' Index of Games:
+0-video pinball, 1-Break out, 2-cartpole, 3-connect four, 
+4-gomoku, 5- gridworld, 6-lunarlander, 7-tictactoe, 8-twenty-one
+'''
 
 
 class MuZero:
@@ -30,13 +51,14 @@ class MuZero:
         >>> muzero.test(render=True, opponent="self", muzero_player=None)
     """
 
-    def __init__(self, game_name):
+    def __init__(self, game_name, args):
+        args = args
         self.game_name = game_name
 
         # Load the game and the config from the module with the game name
         try:
             game_module = importlib.import_module("games." + self.game_name)
-            self.config = game_module.MuZeroConfig()
+            self.config = game_module.MuZeroConfig(args)
             self.Game = game_module.Game
         except Exception as err:
             print(
@@ -122,6 +144,7 @@ class MuZero:
         test_worker.continuous_self_play.remote(shared_storage_worker, None, True)
 
         # Write everything in TensorBoard
+
         writer = SummaryWriter(self.config.results_path)
 
         print(
@@ -133,15 +156,18 @@ class MuZero:
             "| {} | {} |".format(key, value)
             for key, value in self.config.__dict__.items()
         ]
+
         writer.add_text(
             "Hyperparameters",
             "| Parameter | Value |\n|-------|-------|\n" + "\n".join(hp_table),
         )
         # Save model representation
+
         writer.add_text(
             "Model summary",
             str(models.MuZeroNetwork(self.config)).replace("\n", " \n\n"),
         )
+
         # Loop for updating the training performance
         counter = 0
         infos = ray.get(shared_storage_worker.get_infos.remote())
@@ -252,59 +278,123 @@ class MuZero:
 
 
 if __name__ == "__main__":
-    print("\nWelcome to MuZero! Here's a list of games:")
-    # Let user pick a game
-    games = [
-        filename[:-3]
-        for filename in sorted(os.listdir("./games"))
-        if filename.endswith(".py") and filename != "abstract_game.py"
-    ]
-    for i in range(len(games)):
-        print("{}. {}".format(i, games[i]))
-    choice = input("Enter a number to choose the game: ")
-    valid_inputs = [str(i) for i in range(len(games))]
-    while choice not in valid_inputs:
-        choice = input("Invalid input, enter a number listed above: ")
-
-    # Initialize MuZero
-    choice = int(choice)
-    muzero = MuZero(games[choice])
-
-    while True:
-        # Configure running options
-        options = [
-            "Train",
-            "Load pretrained model",
-            "Render some self play games",
-            "Play against MuZero",
-            "Test the game manually",
-            "Exit",
+    if args.interactive_mode:
+        print("\nWelcome to MuZero! Here's a list of games:")
+        # Let user pick a game
+        games = [
+            filename[:-3]
+            for filename in sorted(os.listdir("./games"))
+            if filename.endswith(".py") and filename != "abstract_game.py"
         ]
-        print()
-        for i in range(len(options)):
-            print("{}. {}".format(i, options[i]))
-
-        choice = input("Enter a number to choose an action: ")
-        valid_inputs = [str(i) for i in range(len(options))]
+        for i in range(len(games)):
+            print("{}. {}".format(i, games[i]))
+        choice = input("Enter a number to choose the game: ")
+        valid_inputs = [str(i) for i in range(len(games))]
         while choice not in valid_inputs:
             choice = input("Invalid input, enter a number listed above: ")
+
+        # Initialize MuZero
         choice = int(choice)
+        muzero = MuZero(games[choice], args)
+
+        while True:
+            # Configure running options
+            options = [
+                "Train",
+                "Load pretrained model",
+                "Render some self play games",
+                "Play against MuZero",
+                "Test the game manually",
+                "Exit",
+            ]
+            print()
+            for i in range(len(options)):
+                print("{}. {}".format(i, options[i]))
+
+            choice = input("Enter a number to choose an action: ")
+            valid_inputs = [str(i) for i in range(len(options))]
+            while choice not in valid_inputs:
+                choice = input("Invalid input, enter a number listed above: ")
+            choice = int(choice)
+            if choice == 0:
+                muzero.train()
+            elif choice == 1:
+                weights_path = input(
+                    "Enter a path to the model.weights, or ENTER if none: "
+                )
+                while weights_path and not os.path.isfile(weights_path):
+                    weights_path = input("Invalid weights path. Try again: ")
+                replay_buffer_path = input(
+                    "Enter path for existing replay buffer, or ENTER if none: "
+                )
+                while replay_buffer_path and not os.path.isfile(replay_buffer_path):
+                    replay_buffer_path = input("Invalid replay buffer path. Try again: ")
+                muzero.load_model(
+                    weights_path=weights_path, replay_buffer_path=replay_buffer_path
+                )
+            elif choice == 2:
+                muzero.test(render=True, opponent="self", muzero_player=None)
+            elif choice == 3:
+                muzero.test(render=True, opponent="human", muzero_player=0)
+            elif choice == 4:
+                env = muzero.Game()
+                env.reset()
+                env.render()
+
+                done = False
+                while not done:
+                    action = env.human_to_action()
+                    observation, reward, done = env.step(action)
+                    print(
+                        "\nAction: {}\nReward: {}".format(
+                            env.action_to_string(action), reward
+                        )
+                    )
+                    env.render()
+
+            else:
+                break
+            print("\nDone")
+    else:
+        games = [
+            filename[:-3]
+            for filename in sorted(os.listdir("./games"))
+            if filename.endswith(".py") and filename != "abstract_game.py"
+        ]
+        choice = args.game_choice
+        valid_inputs = [str(i) for i in range(len(games))]
+
+        # Initialize MuZero
+        muzero = MuZero(games[choice], args)
+
+        choice = 0
         if choice == 0:
+            weights_path = args.weights_path
+            if args.weights_path is not None:
+                while weights_path and not os.path.isfile(weights_path):
+                    weights_path = input("Invalid weights path. Try again: ")
+                replay_buffer_path = input(
+                    "Enter path for existing replay buffer, or ENTER if none: "
+                )
+                while replay_buffer_path and not os.path.isfile(replay_buffer_path):
+                    replay_buffer_path = input("Invalid replay buffer path. Try again: ")
+                muzero.load_model(
+                    weights_path=weights_path, replay_buffer_path=replay_buffer_path
+                )
             muzero.train()
         elif choice == 1:
-            weights_path = input(
-                "Enter a path to the model.weights, or ENTER if none: "
-            )
-            while weights_path and not os.path.isfile(weights_path):
-                weights_path = input("Invalid weights path. Try again: ")
-            replay_buffer_path = input(
-                "Enter path for existing replay buffer, or ENTER if none: "
-            )
-            while replay_buffer_path and not os.path.isfile(replay_buffer_path):
-                replay_buffer_path = input("Invalid replay buffer path. Try again: ")
-            muzero.load_model(
-                weights_path=weights_path, replay_buffer_path=replay_buffer_path
-            )
+            weights_path = args.weights_path
+            if args.weights_path is not None:
+                while weights_path and not os.path.isfile(weights_path):
+                    weights_path = input("Invalid weights path. Try again: ")
+                replay_buffer_path = input(
+                    "Enter path for existing replay buffer, or ENTER if none: "
+                )
+                while replay_buffer_path and not os.path.isfile(replay_buffer_path):
+                    replay_buffer_path = input("Invalid replay buffer path. Try again: ")
+                muzero.load_model(
+                    weights_path=weights_path, replay_buffer_path=replay_buffer_path
+                )
         elif choice == 2:
             muzero.test(render=True, opponent="self", muzero_player=None)
         elif choice == 3:
@@ -324,8 +414,6 @@ if __name__ == "__main__":
                     )
                 )
                 env.render()
-        else:
-            break
         print("\nDone")
 
     ## Successive training, create a new config file for each experiment

@@ -9,13 +9,12 @@ from .abstract_game import AbstractGame
 
 
 class MuZeroConfig:
-    def __init__(self):
+    def __init__(self, args):
         self.seed = 0  # Seed for numpy, torch and the game
 
-
-
         ### Game
-        self.observation_shape = (3, 6, 7)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
+        self.observation_shape = (3, 6,
+                                  7)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
         self.action_space = [i for i in range(7)]  # Fixed list of all possible actions. You should only edit the length
         self.players = [i for i in range(2)]  # List of players. You should only edit the length
         self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
@@ -24,10 +23,8 @@ class MuZeroConfig:
         self.muzero_player = 0  # Turn Muzero begins to play (0: MuZero plays first, 1: MuZero plays second)
         self.opponent = "expert"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
-
-
         ### Self-Play
-        self.num_actors = 1  # Number of simultaneous threads self-playing to feed the replay buffer
+        self.num_actors = args.num_actors  # Number of simultaneous threads self-playing to feed the replay buffer
         self.max_moves = 42  # Maximum number of moves if game is not finished before
         self.num_simulations = 200  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
@@ -41,12 +38,10 @@ class MuZeroConfig:
         self.pb_c_base = 19652
         self.pb_c_init = 1.25
 
-
-
         ### Network
         self.network = "resnet"  # "resnet" / "fullyconnected"
         self.support_size = 10  # Value and reward are scaled (with almost sqrt) and encoded on a vector with a range of -support_size to support_size
-        
+
         # Residual Network
         self.downsample = False  # Downsample observations before representation network (See paper appendix Network Architecture)
         self.blocks = 6  # Number of blocks in the ResNet
@@ -57,7 +52,7 @@ class MuZeroConfig:
         self.resnet_fc_reward_layers = [32]  # Define the hidden layers in the reward head of the dynamic network
         self.resnet_fc_value_layers = [32]  # Define the hidden layers in the value head of the prediction network
         self.resnet_fc_policy_layers = [32]  # Define the hidden layers in the policy head of the prediction network
-        
+
         # Fully Connected Network
         self.encoding_size = 32
         self.fc_representation_layers = []  # Define the hidden layers in the representation network
@@ -66,26 +61,24 @@ class MuZeroConfig:
         self.fc_value_layers = []  # Define the hidden layers in the value network
         self.fc_policy_layers = []  # Define the hidden layers in the policy network
 
-
-
         ### Training
-        self.results_path = os.path.join(os.path.dirname(__file__), "../results", os.path.basename(__file__)[:-3], datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
+        self.results_path = os.path.join(os.path.dirname(__file__), "../results", os.path.basename(__file__)[:-3],
+                                         datetime.datetime.now().strftime(
+                                             "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.training_steps = 100000  # Total number of training steps (ie weights update according to a batch)
         self.batch_size = 256  # Number of parts of games to train on at each training step
         self.checkpoint_interval = 10  # Number of training steps before using the model for self-playing
         self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.training_device = "cuda" if torch.cuda.is_available() else "cpu"  # Train on GPU if available
 
-        self.optimizer = "Adam"  # "Adam" or "SGD". Paper uses SGD
+        self.optimizer = args.optimizer  # "Adam" or "SGD". Paper uses SGD
         self.weight_decay = 1e-4  # L2 weights regularization
         self.momentum = 0.9  # Used only if optimizer is SGD
 
         # Exponential learning rate schedule
-        self.lr_init = 0.001  # Initial learning rate
-        self.lr_decay_rate = 1  # Set it to 1 to use a constant learning rate
+        self.lr_init = args.learning_rate  # Initial learning rate
+        self.lr_decay_rate = args.decay_rate  # Set it to 1 to use a constant learning rate
         self.lr_decay_steps = 10000
-
-
 
         ### Replay Buffer
         self.window_size = 10000  # Number of self-play games to keep in the replay buffer
@@ -99,13 +92,10 @@ class MuZeroConfig:
         self.PER_alpha = 0.5  # How much prioritization is used, 0 corresponding to the uniform case, paper suggests 1
         self.PER_beta = 1.0
 
-
-
         ### Adjust the self play / training ratio to avoid over/underfitting
-        self.self_play_delay = 0  # Number of seconds to wait after each played game
-        self.training_delay = 0  # Number of seconds to wait after each training step
+        self.self_play_delay = args.self_play_delay  # Number of seconds to wait after each played game
+        self.training_delay = args.training_delay  # Number of seconds to wait after each training step
         self.ratio = None  # Desired self played games per training step ratio. Equivalent to a synchronous version, training can take much longer. Set it to None to disable it
-
 
     def visit_softmax_temperature_fn(self, trained_steps):
         """
@@ -129,7 +119,7 @@ class Game(AbstractGame):
     def step(self, action):
         """
         Apply action to the game.
-        
+
         Args:
             action : action of the action_space to take.
 
@@ -144,7 +134,7 @@ class Game(AbstractGame):
         Return the current player.
 
         Returns:
-            The current player, it should be an element of the players list in the config. 
+            The current player, it should be an element of the players list in the config.
         """
         return self.env.to_play()
 
@@ -152,9 +142,9 @@ class Game(AbstractGame):
         """
         Should return the legal actions at each turn, if it is not available, it can return
         the whole action space. At each turn, the game have to be able to handle one of returned actions.
-        
+
         For complex game where calculating legal moves is too long, the idea is to define the legal actions
-        equal to the action space but to return a negative reward if the action is illegal.        
+        equal to the action space but to return a negative reward if the action is illegal.
 
         Returns:
             An array of integers, subset of the action space.
@@ -164,7 +154,7 @@ class Game(AbstractGame):
     def reset(self):
         """
         Reset the game for a new game.
-        
+
         Returns:
             Initial observation of the game.
         """
@@ -261,10 +251,10 @@ class Connect4:
         for i in range(4):
             for j in range(6):
                 if (
-                    self.board[j][i] == self.player
-                    and self.board[j][i + 1] == self.player
-                    and self.board[j][i + 2] == self.player
-                    and self.board[j][i + 3] == self.player
+                        self.board[j][i] == self.player
+                        and self.board[j][i + 1] == self.player
+                        and self.board[j][i + 2] == self.player
+                        and self.board[j][i + 3] == self.player
                 ):
                     return True
 
@@ -272,10 +262,10 @@ class Connect4:
         for i in range(7):
             for j in range(3):
                 if (
-                    self.board[j][i] == self.player
-                    and self.board[j + 1][i] == self.player
-                    and self.board[j + 2][i] == self.player
-                    and self.board[j + 3][i] == self.player
+                        self.board[j][i] == self.player
+                        and self.board[j + 1][i] == self.player
+                        and self.board[j + 2][i] == self.player
+                        and self.board[j + 3][i] == self.player
                 ):
                     return True
 
@@ -283,10 +273,10 @@ class Connect4:
         for i in range(4):
             for j in range(3):
                 if (
-                    self.board[j][i] == self.player
-                    and self.board[j + 1][i + 1] == self.player
-                    and self.board[j + 2][i + 2] == self.player
-                    and self.board[j + 3][i + 3] == self.player
+                        self.board[j][i] == self.player
+                        and self.board[j + 1][i + 1] == self.player
+                        and self.board[j + 2][i + 2] == self.player
+                        and self.board[j + 3][i + 3] == self.player
                 ):
                     return True
 
@@ -294,10 +284,10 @@ class Connect4:
         for i in range(4):
             for j in range(3, 6):
                 if (
-                    self.board[j][i] == self.player
-                    and self.board[j - 1][i + 1] == self.player
-                    and self.board[j - 2][i + 2] == self.player
-                    and self.board[j - 3][i + 3] == self.player
+                        self.board[j][i] == self.player
+                        and self.board[j - 1][i + 1] == self.player
+                        and self.board[j - 2][i + 2] == self.player
+                        and self.board[j - 3][i + 3] == self.player
                 ):
                     return True
 
@@ -308,12 +298,12 @@ class Connect4:
         action = numpy.random.choice(self.legal_actions())
         for k in range(3):
             for l in range(4):
-                sub_board = board[k:k+4, l:l+4]
+                sub_board = board[k:k + 4, l:l + 4]
                 # Horizontal and vertical checks
                 for i in range(4):
                     if abs(sum(sub_board[i, :])) == 3:
                         ind = numpy.where(sub_board[i, :] == 0)[0][0]
-                        if numpy.count_nonzero(board[:, ind+l]) == i+k:
+                        if numpy.count_nonzero(board[:, ind + l]) == i + k:
                             action = ind + l
                             if self.player * sum(sub_board[i, :]) > 0:
                                 return action
@@ -327,19 +317,19 @@ class Connect4:
                 anti_diag = numpy.fliplr(sub_board).diagonal()
                 if abs(sum(diag)) == 3:
                     ind = numpy.where(diag == 0)[0][0]
-                    if numpy.count_nonzero(board[:, ind+l]) == ind+k:
-                        action = ind + l 
+                    if numpy.count_nonzero(board[:, ind + l]) == ind + k:
+                        action = ind + l
                         if self.player * sum(diag) > 0:
                             return action
 
                 if abs(sum(anti_diag)) == 3:
                     ind = numpy.where(anti_diag == 0)[0][0]
-                    if numpy.count_nonzero(board[:, 3-ind+l]) == ind+k:
-                        action = 3-ind+l
+                    if numpy.count_nonzero(board[:, 3 - ind + l]) == ind + k:
+                        action = 3 - ind + l
                         if self.player * sum(anti_diag) > 0:
                             return action
 
         return action
-        
+
     def render(self):
         print(self.board[::-1])
