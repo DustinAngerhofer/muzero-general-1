@@ -25,7 +25,7 @@ class MuZeroConfig:
 
         ### Self-Play
         self.num_actors = args.num_actors  # Number of simultaneous threads self-playing to feed the replay buffer
-        self.max_moves = 5000  # Maximum number of moves if game is not finished before
+        self.max_moves = 500  # Maximum number of moves if game is not finished before
         self.num_simulations = 30  # Number of future moves self-simulated
         self.discount = 0.997  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping temperature to 0 (ie playing according to the max)
