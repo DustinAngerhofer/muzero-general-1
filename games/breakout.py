@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 
 
 class MuZeroConfig:
-    def __init__(self):
+    def __init__(self, args):
         self.seed = 0  # Seed for numpy, torch and the game
 
 
