@@ -25,7 +25,7 @@ class MuZeroConfig:
 
         ### Self-Play
         self.num_actors = args.num_actors  # Number of simultaneous threads self-playing to feed the replay buffer
-        self.max_moves = 500  # Maximum number of moves if game is not finished before
+        self.max_moves = 500000 # Maximum number of moves if game is not finished before
         self.num_simulations = 30  # Number of future moves self-simulated
         self.discount = 0.997  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping temperature to 0 (ie playing according to the max)
@@ -166,7 +166,6 @@ class Game(AbstractGame):
         Display the game observation.
         """
         self.env.render()
-        input("Press enter to take a step ")
 
     def action_to_string(self, action_number):
         """
@@ -179,5 +178,12 @@ class Game(AbstractGame):
         actions = {
             0: "Push cart to the left",
             1: "Push cart to the right",
+            2: "action 2",
+            3: "action 3",
+            4: "action 4",
+            5: "action 5",
+            6: "action 6",
+            7: "action 7",
+            8: "action 8"
         }
         return "{}. {}".format(action_number, actions[action_number])
