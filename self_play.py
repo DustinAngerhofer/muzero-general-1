@@ -151,13 +151,15 @@ class SelfPlay:
                         else 0,
                     )
 
-                    if render:
-                        print("Tree depth: {}".format(tree_depth))
-                        print(
-                            "Root value for player {0}: {1:.2f}".format(
-                                self.game.to_play(), root.value()
-                            )
-                        )
+
+                    #if render:
+                        #print("Tree depth: {}".format(tree_depth))
+                        #print(
+                            #"Root value for player {0}: {1:.2f}".format(
+                                #self.game.to_play(), root.value()
+                           # )
+                       # )
+
                 else:
                     action, root, tree_depth = self.select_opponent_action(
                         opponent, stacked_observations
@@ -166,9 +168,10 @@ class SelfPlay:
                 observation, reward, done = self.game.step(action)
 
                 if render:
-                    print(
-                        "Played action: {}".format(self.game.action_to_string(action))
-                    )
+
+                    #print(
+                      #  "Played action: {}".format(self.game.action_to_string(action))
+                    #)
                     self.game.render()
 
                 game_history.store_search_statistics(root, self.config.action_space)
@@ -220,7 +223,7 @@ class SelfPlay:
     def select_action(node, temperature):
         """
         Select action according to the visit count distribution and the temperature.
-        The temperature is changed dynamically with the visit_softmax_temperature function 
+        The temperature is changed dynamically with the visit_softmax_temperature function
         in the config.
         """
         visit_counts = numpy.array(
