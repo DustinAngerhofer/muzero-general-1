@@ -17,7 +17,7 @@ import trainer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--game_choice', type=int, help='Index number of desired game',
-                    default=0)  # See line 32 for more info
+                    default=7)  # See line 32 for more info
 parser.add_argument('--interactive_mode', type=bool, help='Index of desired game', default=False)
 parser.add_argument('--weights_path', type=str, help='Path of desired weights', default=None)
 parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
@@ -252,7 +252,18 @@ class MuZero:
         history = ray.get(
             self_play_workers.play_game.remote(0, 0, render, opponent, muzero_player)
         )
+
+        # Persist replay buffer to disk. This code is a modification of the original
+        print("\n\nPersisting replay buffer games to disk...")
+        os.makedirs(self.config.results_path, exist_ok=True)
+        path = self.config.results_path
+        pickle.dump(
+            history,
+            open(os.path.join(path, "replay_buffer.pkl"), "wb"),
+        )
+        #end of modification
         ray.shutdown()
+
         return sum(history.reward_history)
 
     def load_model(self, weights_path=None, replay_buffer_path=None):
@@ -333,7 +344,7 @@ if __name__ == "__main__":
                     weights_path=weights_path, replay_buffer_path=replay_buffer_path
                 )
             elif choice == 2:
-                muzero.test(render=True, opponent="self", muzero_player=None)
+                muzero.test(render=True, opponent="self", muzero_player=0)
             elif choice == 3:
                 muzero.test(render=True, opponent="human", muzero_player=0)
             elif choice == 4:
