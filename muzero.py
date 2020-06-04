@@ -17,7 +17,7 @@ import trainer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--game_choice', type=int, help='Index number of desired game',
-                    default=7)  # See line 32 for more info
+                    default=0)  # See line 32 for more info
 parser.add_argument('--interactive_mode', type=bool, help='Index of desired game', default=False)
 parser.add_argument('--weights_path', type=str, help='Path of desired weights', default=None)
 parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
@@ -52,7 +52,7 @@ class MuZero:
     """
 
     def __init__(self, game_name, args):
-        args = args
+
         self.game_name = game_name
 
         # Load the game and the config from the module with the game name

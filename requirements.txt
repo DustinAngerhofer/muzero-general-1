@@ -1,6 +1,7 @@
-numpy
+numpy~=1.18.1
 torch
 tensorboard
-gym
+gym~=0.17.2
 box2d-py
-ray
+ray~=0.8.5
+opencv-python~=4.2.0.34
