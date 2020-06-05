@@ -1,7 +1,7 @@
 import gym
 import time
 
-env = gym.make("Amidar-v0")
+env = gym.make("MontezumaRevenge-v0")
 print(env.action_space)
 env.reset()
 env.seed(0)
