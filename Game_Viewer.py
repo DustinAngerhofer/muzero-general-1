@@ -4,7 +4,7 @@ import time
 
 path_1 = '/home/w033dja/PycharmProjects/muzero-general-1/results/Video_Pinball/2020-06-02--13-40-48/replay_buffer.pkl'
 path_2 = '/home/w033dja/PycharmProjects/muzero-general-1/results/Video_Pinball/2020-05-30--00-21-55/replay_buffer.pkl'
-path_3 = '/home/w033dja/PycharmProjects/muzero-general-1/results/Video_Pinball/replay_buffer.pkl'
+path_3 = '/results/Video_Pinball/Fry_Training_Results_2020_06_01/replay_buffer.pkl'
 path_4 = '/replay_buffer.pkl'
 
 with open(path_1, 'rb') as f:
