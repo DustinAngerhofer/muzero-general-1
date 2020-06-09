@@ -105,11 +105,15 @@ class MuZero:
             )
             for seed in range(self.config.num_actors)
         ]
-        accuracy_worker = self_play.SelfPlay.remote(
-                copy.deepcopy(self.muzero_weights),
-                self.Game(self.config.num_actors),
-                self.config,
-            )
+        # this is a modification from the original
+        if args.game_choice == 65:
+            accuracy_worker = self_play.SelfPlay.remote(
+                    copy.deepcopy(self.muzero_weights),
+                    self.Game(self.config.num_actors),
+                    self.config,
+                )
+            accuracy_worker.get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker)
+        # end of modification
 
         # Launch workers
         [
@@ -121,7 +125,6 @@ class MuZero:
         training_worker.continuous_update_weights.remote(
             replay_buffer_worker, shared_storage_worker
         )
-        accuracy_worker.get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker)
         # Save performance in TensorBoard
         self._logging_loop(shared_storage_worker, replay_buffer_worker)
 
