@@ -234,7 +234,7 @@ class SelfPlay:
         while True:
             infos = ray.get(shared_storage.get_infos.remote())
             correct_moves_list = infos["correct_moves"]
-            if len(correct_moves_list) == 5:
+            if len(correct_moves_list) == 20:
                 sum_correct = 0
                 for l in range(len(correct_moves_list)):
                     sum_correct += correct_moves_list[l]
