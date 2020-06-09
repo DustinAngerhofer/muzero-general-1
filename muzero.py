@@ -17,7 +17,7 @@ import trainer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--game_choice', type=int, help='Index number of desired game',
-                    default=0)  # See line 32 for more info
+                    default=65)  # See line 32 for more info
 parser.add_argument('--interactive_mode', type=bool, help='Index of desired game', default=False)
 parser.add_argument('--weights_path', type=str, help='Path of desired weights', default=None)
 parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
@@ -105,6 +105,11 @@ class MuZero:
             )
             for seed in range(self.config.num_actors)
         ]
+        accuracy_worker = self_play.SelfPlay.remote(
+                copy.deepcopy(self.muzero_weights),
+                self.Game(self.config.num_actors),
+                self.config,
+            )
 
         # Launch workers
         [
@@ -116,7 +121,7 @@ class MuZero:
         training_worker.continuous_update_weights.remote(
             replay_buffer_worker, shared_storage_worker
         )
-
+        accuracy_worker.get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker)
         # Save performance in TensorBoard
         self._logging_loop(shared_storage_worker, replay_buffer_worker)
 
@@ -212,6 +217,8 @@ class MuZero:
                 writer.add_scalar("3.Loss/Value loss", infos["value_loss"], counter)
                 writer.add_scalar("3.Loss/Reward loss", infos["reward_loss"], counter)
                 writer.add_scalar("3.Loss/Policy loss", infos["policy_loss"], counter)
+
+                writer.add_scalar("4.Accuracy/Accuracy", infos["Accuracy"], counter)
                 print(
                     "Last test reward: {0:.2f}. Training step: {1}/{2}. Played games: {3}. Loss: {4:.2f}".format(
                         infos["total_reward"],

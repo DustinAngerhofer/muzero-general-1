@@ -25,6 +25,7 @@ class SharedStorage:
             "value_loss": 0,
             "reward_loss": 0,
             "policy_loss": 0,
+            "Accuracy": 0,
         }
 
     def get_weights(self):

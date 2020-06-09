@@ -8,6 +8,12 @@ import torch
 
 import models
 
+# this is a modification to the original
+import TicTacToeTester
+import TicTacToe_Optimal_Moves
+
+
+# end of modification
 
 @ray.remote
 class SelfPlay:
@@ -34,7 +40,6 @@ class SelfPlay:
             self.model.set_weights(
                 copy.deepcopy(ray.get(shared_storage.get_weights.remote()))
             )
-
             if not test_mode:
                 game_history = self.play_game(
                     self.config.visit_softmax_temperature_fn(
@@ -49,6 +54,7 @@ class SelfPlay:
                 )
 
                 replay_buffer.save_game.remote(game_history)
+
 
             else:
                 # Take the best action (no exploration) in test mode
@@ -78,8 +84,8 @@ class SelfPlay:
                             [
                                 reward
                                 for i, reward in enumerate(game_history.reward_history)
-                                if game_history.to_play_history[i-1]
-                                == self.config.muzero_player
+                                if game_history.to_play_history[i - 1]
+                                   == self.config.muzero_player
                             ]
                         ),
                     )
@@ -89,8 +95,8 @@ class SelfPlay:
                             [
                                 reward
                                 for i, reward in enumerate(game_history.reward_history)
-                                if game_history.to_play_history[i-1]
-                                != self.config.muzero_player
+                                if game_history.to_play_history[i - 1]
+                                   != self.config.muzero_player
                             ]
                         ),
                     )
@@ -100,16 +106,16 @@ class SelfPlay:
                 time.sleep(self.config.self_play_delay)
             if not test_mode and self.config.ratio:
                 while (
-                    ray.get(replay_buffer.get_self_play_count.remote())
-                    / max(
-                        1, ray.get(shared_storage.get_infos.remote())["training_step"]
-                    )
-                    > self.config.ratio
+                        ray.get(replay_buffer.get_self_play_count.remote())
+                        / max(
+                    1, ray.get(shared_storage.get_infos.remote())["training_step"]
+                )
+                        > self.config.ratio
                 ):
                     time.sleep(0.5)
 
     def play_game(
-        self, temperature, temperature_threshold, render, opponent, muzero_player
+            self, temperature, temperature_threshold, render, opponent, muzero_player
     ):
         """
         Play one game with actions based on the Monte Carlo tree search at each moves.
@@ -128,7 +134,7 @@ class SelfPlay:
 
         with torch.no_grad():
             while (
-                not done and len(game_history.action_history) <= self.config.max_moves
+                    not done and len(game_history.action_history) <= self.config.max_moves
             ):
                 stacked_observations = game_history.get_stacked_observations(
                     -1, self.config.stacked_observations,
@@ -151,14 +157,13 @@ class SelfPlay:
                         else 0,
                     )
 
-
-                    #if render:
-                        #print("Tree depth: {}".format(tree_depth))
-                        #print(
-                            #"Root value for player {0}: {1:.2f}".format(
-                                #self.game.to_play(), root.value()
-                           # )
-                       # )
+                    # if render:
+                    # print("Tree depth: {}".format(tree_depth))
+                    # print(
+                    # "Root value for player {0}: {1:.2f}".format(
+                    # self.game.to_play(), root.value()
+                    # )
+                    # )
 
                 else:
                     action, root, tree_depth = self.select_opponent_action(
@@ -168,10 +173,9 @@ class SelfPlay:
                 observation, reward, done = self.game.step(action)
 
                 if render:
-
-                    #print(
-                      #  "Played action: {}".format(self.game.action_to_string(action))
-                    #)
+                    # print(
+                    #  "Played action: {}".format(self.game.action_to_string(action))
+                    # )
                     self.game.render()
 
                 game_history.store_search_statistics(root, self.config.action_space)
@@ -184,6 +188,71 @@ class SelfPlay:
 
         self.game.close()
         return game_history
+
+    # These functions are modifications to the original
+    def action_from_state(self, temperature, temperature_threshold, muzero_player, observation):
+        game_history = GameHistory()
+        game_history.action_history.append(0)
+        game_history.observation_history.append(observation)
+        game_history.reward_history.append(0)
+        game_history.to_play_history.append(muzero_player)
+
+        with torch.no_grad():
+            stacked_observations = game_history.get_stacked_observations(
+                -1, self.config.stacked_observations,
+            )
+
+            # Choose the action
+            root, tree_depth = MCTS(self.config).run(
+                self.model,
+                stacked_observations,
+                self.game.legal_actions(),
+                muzero_player,
+                False if temperature == 0 else True,
+            )
+
+            action = self.select_action(
+                root,
+                temperature
+                if not temperature_threshold
+                   or len(game_history.action_history) < temperature_threshold
+                else 0,
+            )
+        self.game.close()
+        return action
+
+    def get_accuracy_tictactoe(self, shared_storage, replay_buffer):
+        while True:
+            if ray.get(replay_buffer.get_self_play_count.remote()) % 1000 == 0:
+                test_set = TicTacToeTester.legal_and_playable_set()
+                temperature = 1
+                temperature_threshold = 6
+                move_count = 0
+                correct_moves = 0
+
+                for i in range(len(test_set)):
+                    move_count += 1
+                    observation = TicTacToeTester.state_decomp(test_set[i][0])
+                    player = test_set[i][1]
+                    if player == 1:
+                        player_mod = 0
+                    else:
+                        player_mod = -1
+                    agent_action = self.action_from_state(temperature, temperature_threshold, player_mod, observation)
+                    row = agent_action // 3
+                    col = agent_action % 3
+                    agent_action = (row, col)
+                    optimal_actions = TicTacToe_Optimal_Moves.optimal_moves(
+                        TicTacToeTester.state_generator(test_set[i][0]), player)
+
+                    for k in range(len(optimal_actions)):
+                        if agent_action == optimal_actions[k]:
+                            correct_moves += 1
+                            break
+                shared_storage.set_infos.remote("Accuracy", correct_moves / move_count)
+                print("Accuracy:", correct_moves / move_count)
+
+    # end of modifications
 
     def select_opponent_action(self, opponent, stacked_observations):
         """
@@ -267,9 +336,9 @@ class MCTS:
         root = Node(0)
         observation = (
             torch.tensor(observation)
-            .float()
-            .unsqueeze(0)
-            .to(next(model.parameters()).device)
+                .float()
+                .unsqueeze(0)
+                .to(next(model.parameters()).device)
         )
         (
             root_predicted_value,
