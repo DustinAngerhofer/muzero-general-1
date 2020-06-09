@@ -258,8 +258,8 @@ class SelfPlay:
                         player_mod = 0
                     else:
                         player_mod = -1
-                    if (move_count + start_index) % 100 == 0:
-                        print(move_count + start_index)
+                    # if (move_count + start_index) % 100 == 0:
+                    #     print(move_count + start_index)
                     agent_action = self.action_from_state_tictactoe(temperature, temperature_threshold, player_mod,
                                                                     observation,
                                                                     test_set[i][0])
