@@ -234,7 +234,7 @@ class SelfPlay:
 
     def get_accuracy_tictactoe(self, shared_storage, replay_buffer, worker_index, num_workers):
         while True:
-            if ray.get(replay_buffer.get_self_play_count.remote()) % 1000 == 0:
+            if ray.get(replay_buffer.get_self_play_count.remote()) % 5000 == 0:
                 test_set = TicTacToeTester.legal_and_playable_set()
                 temperature = 1
                 temperature_threshold = 6
