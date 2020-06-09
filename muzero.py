@@ -23,6 +23,7 @@ parser.add_argument('--weights_path', type=str, help='Path of desired weights', 
 parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
 parser.add_argument('--decay_rate', type=float, help='decay rate', default=0.95)
 parser.add_argument('--num_actors', type=int, help='Number of simultaneous threads self-playing', default=15)
+parser.add_argument('--num_accuracy_workers', type=int, help='Number of simultaneous threads checking accuracy', default=5)
 parser.add_argument('--optimizer', type=str, help='"Adam" or "SGD"', default='Adam')
 parser.add_argument('--beginning_turn', type=int, help='0: MuZero plays first, 1: MuZero plays second', default=0)
 parser.add_argument('--self_play_delay', type=float, help='Number of seconds to wait after each played game',
@@ -107,12 +108,16 @@ class MuZero:
         ]
         # this is a modification from the original
         if args.game_choice == 65:
-            accuracy_worker = self_play.SelfPlay.remote(
+            accuracy_workers = [
+                self_play.SelfPlay.remote(
                     copy.deepcopy(self.muzero_weights),
-                    self.Game(self.config.num_actors),
+                    self.Game(self.config.seed + seed),
                     self.config,
                 )
-            accuracy_worker.get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker)
+                for seed in range(args.num_accuracy_workers)
+            ]
+            for k in range(len(accuracy_workers)):
+                accuracy_workers[k].get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker, k, args.num_accuracy_workers)
         # end of modification
 
         # Launch workers

@@ -37,6 +37,18 @@ def difference_x_o(state):
     return _1_count - negative_1_count
 
 
+def sum_x_o(state):
+    positive_1_count = 0
+    negative_1_count = 0
+    for i in range(3):
+        for j in range(3):
+            if state[i, j] == 1:
+                positive_1_count += 1
+            if state[i, j] == -1:
+                negative_1_count += 1
+    return positive_1_count + negative_1_count
+
+
 def is_legal(state, player):
     legal = False
     if not TicTacToe_Optimal_Moves.win_check(state, player):
@@ -66,7 +78,8 @@ def legal_and_playable_set():
         elif is_legal(state, -1):
             player = -1
         if not TicTacToe_Optimal_Moves.win_check(state, -1 * player) and player != 0:
-            legal_and_playable_positions.append((i, player))
+            if sum_x_o(state) < 9:
+                legal_and_playable_positions.append((i, player))
     return legal_and_playable_positions
 
 
@@ -80,6 +93,6 @@ def get_action_from_weights():
     temperature = 1
     temperature_threshold = 9
     observation = state_decomp(250)
-    action = ray.get(SelfPlay_object.action_from_state.remote(temperature, temperature_threshold, 0, observation))
+    action = ray.get(SelfPlay_object.action_from_state_tictactoe.remote(temperature, temperature_threshold, 0, observation))
     ray.shutdown()
     return action

@@ -26,6 +26,7 @@ class SharedStorage:
             "reward_loss": 0,
             "policy_loss": 0,
             "Accuracy": 0,
+            "correct_moves": [],
         }
 
     def get_weights(self):
@@ -43,3 +44,9 @@ class SharedStorage:
 
     def set_infos(self, key, value):
         self.infos[key] = value
+
+    def append_infos(self, key, value):
+        self.infos[key].append(value)
+
+    def flush_infos(self, key): # use only if infos is a list
+        self.infos[key] = []

@@ -11,6 +11,7 @@ import models
 # this is a modification to the original
 import TicTacToeTester
 import TicTacToe_Optimal_Moves
+#from muzero import args
 
 
 # end of modification
@@ -190,12 +191,20 @@ class SelfPlay:
         return game_history
 
     # These functions are modifications to the original
-    def action_from_state(self, temperature, temperature_threshold, muzero_player, observation):
+    def action_from_state_tictactoe(self, temperature, temperature_threshold, muzero_player, observation, n):
         game_history = GameHistory()
         game_history.action_history.append(0)
         game_history.observation_history.append(observation)
         game_history.reward_history.append(0)
         game_history.to_play_history.append(muzero_player)
+
+        current_board = TicTacToeTester.state_generator(n)
+        legal_moves = []
+        for i in range(9):
+            row = i // 3
+            col = i % 3
+            if current_board[row, col] == 0:
+                legal_moves.append(i)
 
         with torch.no_grad():
             stacked_observations = game_history.get_stacked_observations(
@@ -206,7 +215,7 @@ class SelfPlay:
             root, tree_depth = MCTS(self.config).run(
                 self.model,
                 stacked_observations,
-                self.game.legal_actions(),
+                legal_moves,
                 muzero_player,
                 False if temperature == 0 else True,
             )
@@ -221,16 +230,27 @@ class SelfPlay:
         self.game.close()
         return action
 
-    def get_accuracy_tictactoe(self, shared_storage, replay_buffer):
+    def get_accuracy_tictactoe(self, shared_storage, replay_buffer, worker_index, num_workers):
         while True:
+            infos = ray.get(shared_storage.get_infos.remote())
+            correct_moves_list = infos["correct_moves"]
+            if len(correct_moves_list) == 5:
+                sum_correct = 0
+                for l in range(len(correct_moves_list)):
+                    sum_correct += correct_moves_list[l]
+                shared_storage.set_infos.remote("Accuracy", sum_correct / 4520)
+                print("Total accuracy:", sum_correct / 4520)
+                shared_storage.flush_infos.remote("correct_moves")
             if ray.get(replay_buffer.get_self_play_count.remote()) % 1000 == 0:
                 test_set = TicTacToeTester.legal_and_playable_set()
                 temperature = 1
                 temperature_threshold = 6
                 move_count = 0
                 correct_moves = 0
+                start_index = int(numpy.floor(worker_index * 4520 / num_workers))
+                end_index = int(numpy.floor((worker_index + 1) * 4520 / num_workers))
 
-                for i in range(len(test_set)):
+                for i in range(start_index, end_index):
                     move_count += 1
                     observation = TicTacToeTester.state_decomp(test_set[i][0])
                     player = test_set[i][1]
@@ -238,18 +258,24 @@ class SelfPlay:
                         player_mod = 0
                     else:
                         player_mod = -1
-                    agent_action = self.action_from_state(temperature, temperature_threshold, player_mod, observation)
+                    if (move_count + start_index) % 100 == 0:
+                        print(move_count + start_index)
+                    agent_action = self.action_from_state_tictactoe(temperature, temperature_threshold, player_mod,
+                                                                    observation,
+                                                                    test_set[i][0])
                     row = agent_action // 3
                     col = agent_action % 3
                     agent_action = (row, col)
                     optimal_actions = TicTacToe_Optimal_Moves.optimal_moves(
                         TicTacToeTester.state_generator(test_set[i][0]), player)
+                    # if (move_count + start_index) % 100 == 0:
+                    #     print(agent_action, optimal_actions, TicTacToeTester.state_generator(test_set[i][0]))
 
                     for k in range(len(optimal_actions)):
                         if agent_action == optimal_actions[k]:
                             correct_moves += 1
                             break
-                shared_storage.set_infos.remote("Accuracy", correct_moves / move_count)
+                shared_storage.append_infos.remote("correct_moves", correct_moves)
                 print("Accuracy:", correct_moves / move_count)
 
     # end of modifications
@@ -381,7 +407,12 @@ class MCTS:
 
             # Inside the search tree we use the dynamics function to obtain the next hidden
             # state given an action and the previous hidden state
-            parent = search_path[-2]
+            try:
+                parent = search_path[-2]
+            except IndexError:
+                print(search_path)
+                print(observation)
+
             value, reward, policy_logits, hidden_state = model.recurrent_inference(
                 parent.hidden_state,
                 torch.tensor([[action]]).to(parent.hidden_state.device),
@@ -424,10 +455,10 @@ class MCTS:
         The score for a node is based on its value, plus an exploration bonus based on the prior.
         """
         pb_c = (
-            math.log(
-                (parent.visit_count + self.config.pb_c_base + 1) / self.config.pb_c_base
-            )
-            + self.config.pb_c_init
+                math.log(
+                    (parent.visit_count + self.config.pb_c_base + 1) / self.config.pb_c_base
+                )
+                + self.config.pb_c_init
         )
         pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1)
 
@@ -546,7 +577,7 @@ class GameHistory:
 
         stacked_observations = self.observation_history[index].copy()
         for past_observation_index in reversed(
-            range(index - num_stacked_observations, index)
+                range(index - num_stacked_observations, index)
         ):
             if 0 <= past_observation_index:
                 previous_observation = numpy.concatenate(
