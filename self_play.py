@@ -11,7 +11,9 @@ import models
 # this is a modification to the original
 import TicTacToeTester
 import TicTacToe_Optimal_Moves
-#from muzero import args
+
+
+# from muzero import args
 
 
 # end of modification
@@ -154,7 +156,7 @@ class SelfPlay:
                         root,
                         temperature
                         if not temperature_threshold
-                        or len(game_history.action_history) < temperature_threshold
+                           or len(game_history.action_history) < temperature_threshold
                         else 0,
                     )
 
@@ -232,15 +234,6 @@ class SelfPlay:
 
     def get_accuracy_tictactoe(self, shared_storage, replay_buffer, worker_index, num_workers):
         while True:
-            infos = ray.get(shared_storage.get_infos.remote())
-            correct_moves_list = infos["correct_moves"]
-            if len(correct_moves_list) == 20:
-                sum_correct = 0
-                for l in range(len(correct_moves_list)):
-                    sum_correct += correct_moves_list[l]
-                shared_storage.set_infos.remote("Accuracy", sum_correct / 4520)
-                print("Total accuracy:", sum_correct / 4520)
-                shared_storage.flush_infos.remote("correct_moves")
             if ray.get(replay_buffer.get_self_play_count.remote()) % 1000 == 0:
                 test_set = TicTacToeTester.legal_and_playable_set()
                 temperature = 1
@@ -277,6 +270,18 @@ class SelfPlay:
                             break
                 shared_storage.append_infos.remote("correct_moves", correct_moves)
                 print("Accuracy:", correct_moves / move_count)
+
+    def manage_accuracy(self, shared_storage):
+        while True:
+            infos = ray.get(shared_storage.get_infos.remote())
+            correct_moves_list = infos["correct_moves"]
+            if len(correct_moves_list) == 20:
+                sum_correct = 0
+                for l in range(len(correct_moves_list)):
+                    sum_correct += correct_moves_list[l]
+                shared_storage.set_infos.remote("Accuracy", sum_correct / 4520)
+                print("Total accuracy:", sum_correct / 4520)
+                shared_storage.flush_infos.remote("correct_moves")
 
     # end of modifications
 

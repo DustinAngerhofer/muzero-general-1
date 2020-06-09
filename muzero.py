@@ -116,6 +116,12 @@ class MuZero:
                 )
                 for seed in range(args.num_accuracy_workers)
             ]
+            accuracy_manager = self_play.SelfPlay.remote(
+                copy.deepcopy(self.muzero_weights),
+                self.Game(self.config.seed),
+                self.config,
+            )
+            accuracy_manager.manage_accuracy.remote(shared_storage_worker)
             for k in range(len(accuracy_workers)):
                 accuracy_workers[k].get_accuracy_tictactoe.remote(shared_storage_worker, replay_buffer_worker, k, args.num_accuracy_workers)
         # end of modification
