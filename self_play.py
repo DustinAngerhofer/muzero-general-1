@@ -234,7 +234,7 @@ class SelfPlay:
 
     def get_accuracy_tictactoe(self, shared_storage, replay_buffer, worker_index, num_workers):
         while True:
-            if ray.get(replay_buffer.get_self_play_count.remote()) % 5000 == 0:
+            if ray.get(replay_buffer.get_self_play_count.remote()) % 10000 == 0:
                 test_set = TicTacToeTester.legal_and_playable_set()
                 temperature = 1
                 temperature_threshold = 6
@@ -261,13 +261,17 @@ class SelfPlay:
                     agent_action = (row, col)
                     optimal_actions = TicTacToe_Optimal_Moves.optimal_moves(
                         TicTacToeTester.state_generator(test_set[i][0]), player)
-                    # if (move_count + start_index) % 100 == 0:
-                    #     print(agent_action, optimal_actions, TicTacToeTester.state_generator(test_set[i][0]))
 
                     for k in range(len(optimal_actions)):
+                        flag = "Incorrect"
                         if agent_action == optimal_actions[k]:
+                            flag = "correct"
                             correct_moves += 1
                             break
+                    # if (move_count + start_index) % 100 == 0:
+                        # print(agent_action, optimal_actions, player)
+                        # print(TicTacToeTester.state_generator(test_set[i][0]))
+                        # print(flag)
                 shared_storage.append_infos.remote("correct_moves", correct_moves)
                 print("Accuracy:", correct_moves / move_count)
 

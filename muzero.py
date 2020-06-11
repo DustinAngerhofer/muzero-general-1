@@ -22,10 +22,10 @@ parser.add_argument('--interactive_mode', type=bool, help='Index of desired game
 parser.add_argument('--weights_path', type=str, help='Path of desired weights', default=None)
 parser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
 parser.add_argument('--decay_rate', type=float, help='decay rate', default=0.95)
-parser.add_argument('--num_actors', type=int, help='Number of simultaneous threads self-playing', default=15)
-parser.add_argument('--num_accuracy_workers', type=int, help='Number of simultaneous threads checking accuracy', default=20)
+parser.add_argument('--num_actors', type=int, help='Number of simultaneous threads self-playing', default=5)
+parser.add_argument('--num_accuracy_workers', type=int, help='Number of simultaneous threads checking accuracy', default=15)
 parser.add_argument('--optimizer', type=str, help='"Adam" or "SGD"', default='Adam')
-parser.add_argument('--beginning_turn', type=int, help='0: MuZero plays first, 1: MuZero plays second', default=0)
+parser.add_argument('--beginning_turn', type=int, help='0: MuZero plays first, 1: MuZero plays second', default=20)
 parser.add_argument('--self_play_delay', type=float, help='Number of seconds to wait after each played game',
                     default=0)
 parser.add_argument('--training_delay', type=float, help='Number of seconds to wait after each training step',

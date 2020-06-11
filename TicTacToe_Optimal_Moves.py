@@ -88,22 +88,28 @@ def optimal_moves(state, player):
     if len(win_in_one_moves(state, player)) > 0:
         for i in range(len(win_in_one_moves(state, player))):
             optimal_moves_list.append(win_in_one_moves(state, player)[i])
-            return optimal_moves_list
+        return optimal_moves_list
 
-    elif len(win_in_one_moves(state, opposite_player)) > 0:
+    elif len(win_in_one_moves(state, opposite_player)) == 1:
             for i in range(len(win_in_one_moves(state, opposite_player))):
                 optimal_moves_list.append(win_in_one_moves(state, opposite_player)[i])
-                return optimal_moves_list
+            return optimal_moves_list
+    elif len(win_in_one_moves(state, opposite_player)) > 1:
+        for i in range(3):
+            for j in range(3):
+                if state[i, j] == 0:
+                    optimal_moves_list.append((i, j))
+        return optimal_moves_list
 
     elif len(fork_in_one(state, player)) > 0:
         for i in range(len(fork_in_one(state, player))):
             optimal_moves_list.append(fork_in_one(state, player)[i])
-            return optimal_moves_list
+        return optimal_moves_list
 
     elif len(fork_in_one(state, opposite_player)) == 1:
         for i in range(len(fork_in_one(state, opposite_player))):
             optimal_moves_list.append(fork_in_one(state, opposite_player)[i])
-            return optimal_moves_list
+        return optimal_moves_list
 
     elif len(fork_in_one(state, opposite_player)) > 1:
         new_state = state
@@ -130,28 +136,47 @@ def optimal_moves(state, player):
                         new_state[o, p] = 0
         return optimal_moves_list
 
+    elif state[1, 1] == 0:
+        optimal_moves_list.append((1, 1))
+        return optimal_moves_list
+
     else:
-
-        if state[1, 1] == 0:
-            optimal_moves_list.append((1, 1))
-
         if state[0, 0] == opposite_player:
-            optimal_moves_list.append((2, 2))
+            if state[2, 2] == 0:
+                optimal_moves_list.append((2, 2))
 
         if state[2, 2] == opposite_player:
-            optimal_moves_list.append((0, 0))
+            if state[0, 0] == 0:
+                optimal_moves_list.append((0, 0))
 
-        elif state[2, 0] == opposite_player:
-            optimal_moves_list.append((0, 2))
+        if state[2, 0] == opposite_player:
+            if state[0, 2] == 0:
+                optimal_moves_list.append((0, 2))
 
         if state[0, 2] == opposite_player:
+            if state[2, 0] == 0:
+                optimal_moves_list.append((2, 0))
+                return optimal_moves_list
+
+        if state[0, 0] == 0:
+            optimal_moves_list.append((0, 0))
+
+        if state[2, 0] == 0:
             optimal_moves_list.append((2, 0))
+
+        if state[0, 2] == 0:
+            optimal_moves_list.append((0, 2))
+
+        if state[2, 2] == 0:
+            optimal_moves_list.append((2, 2))
+            return optimal_moves_list
 
         if state[0, 1] == 0:
             optimal_moves_list.append((0, 1))
 
         if state[1, 0] == 0:
-            optimal_moves_list.append((1, 0))
+            if state[1, 0] == 0:
+                optimal_moves_list.append((1, 0))
 
         if state[2, 1] == 0:
             optimal_moves_list.append((2, 1))
